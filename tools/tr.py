@@ -16,6 +16,7 @@ TEXT = os.path.join(ROOT, 'work', 'text')
 FILES = ['msg', 'exe', 'kana', 'job', 'bevent', 'scenario']
 TOK = r'\{[a-z](?::[0-9a-f]*)?\}|\{[0-9a-f]{2}\}'
 RUN = re.compile('(?:%s)+' % TOK)
+OKNEXT = set(' \u3000\\…!?！？,.，．、。~～-－―『』「」（）()님경씨의도에한께만하처같조까부대그놈입아인맞')
 MARKS = [chr(0x2460 + i) for i in range(20)] + [chr(0x3251 + i) for i in range(15)] + [chr(0x32B1 + i) for i in range(15)]
 
 
@@ -80,6 +81,10 @@ def problems(name, r):
     for ch in body:
         if '぀' <= ch <= 'ヿ' or '一' <= ch <= '鿿' or '｡' <= ch <= 'ﾟ':
             err.append('일본 글자 남음 %r' % ch); break
+    # 이름·낱말 끼움({a:} {p:}) 바로 뒤엔 받침에 따라 바뀌는 조사를 붙이지 않는다(님·의·에게·도·께서 등만)
+    for m in re.finditer(r'\{[ap]:[0-9a-f]*\}(?!\{)(.?)', ko):
+        if m.group(1) and m.group(1) not in OKNEXT:
+            warn.append('끼움 뒤 조사 %r' % ko[m.end() - 1:m.end() + 3])
     if name == 'msg':
         sk = RUN.sub('', jp)
         lim = max(24, max(len(x) for x in sk.split('\\n')))
