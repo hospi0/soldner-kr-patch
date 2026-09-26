@@ -175,27 +175,34 @@ def main():
                     sec[24:24 + len(chunk)] = chunk
                     fh.seek(pos); fh.write(fix_sector(sec)); n += 1
         # --- 5) 오프닝 자막 동영상(tools/opsub.py build → work/movie/kr/ZZOP.STR) — 원래 자리, 원본 섹터 수 안 ---
-        #   섹터 머리 MSF 를 절대 위치로 다시 쓰고 Form 1/2 가려 EDC/ECC, 마지막 섹터 EOF, 남는 섹터는 빈 Form 2(바로크 방식).
+        #   ★★킹스 필드 3 방식(실기 2026-09-26 «오프닝 끝나고 크래시»): 채움 섹터를 EOF 뒤에 몰면 끝까지 재생했을 때 죽는다.
+        #   → 채움(01 00 00 00)을 «끝에서 8섹터마다»(소리 자리) 흩어 넣어 마지막 섹터 = 데이터+EOF(원본도 마지막 섹터가 EOF).
+        #   프레임 수는 opsub.py 가 원본(2,723)에 맞춘다. MSF·EDC/ECC 는 절대 위치로 다시.
         mv = os.path.join(ROOT, 'work', 'movie', 'kr', 'ZZOP.STR')
         if os.path.exists(mv):
             lba, size = fs['/ZZOP.STR']
             orig_n = (size + 2047) // 2048
             new = open(mv, 'rb').read()
             new_n = len(new) // 2352
-            assert new_n <= orig_n, ('오프닝이 원본보다 크다', new_n, orig_n)
+            need = orig_n - new_n
+            assert 0 <= need and need * 8 < orig_n, ('오프닝 섹터 수', new_n, orig_n)
+            holes = {orig_n - 1 - 8 * k for k in range(1, need + 1)}          # 마지막 섹터는 비우지 않는다
+            di = 0
             for i in range(orig_n):
-                if i < new_n:
-                    s = bytearray(new[i * 2352:(i + 1) * 2352])
-                else:
+                if i in holes:
                     s = bytearray(2352); s[0:12] = b'\x00' + b'\xff' * 10 + b'\x00'
-                    s[16:24] = bytes([1, 1, 0x20, 0, 1, 1, 0x20, 0])
-                if i == new_n - 1:
-                    s[18] |= 0x80; s[22] |= 0x80
+                    s[16:24] = bytes([1, 0, 0, 0, 1, 0, 0, 0])                # 원본 채움 꼴
                 else:
-                    s[18] &= ~0x80; s[22] &= ~0x80
+                    s = bytearray(new[di * 2352:(di + 1) * 2352])
+                    if di == new_n - 1:
+                        s[18] |= 0x80; s[22] |= 0x80
+                    else:
+                        s[18] &= ~0x80; s[22] &= ~0x80
+                    di += 1
                 cdecc.fix_any(s, lba + i)
                 fh.seek((lba + i) * 2352); fh.write(s)
-            print('오프닝 자막 동영상 %d 섹터(원본 %d)' % (new_n, orig_n))
+            assert di == new_n
+            print('오프닝 자막 동영상 %d 섹터 + 채움 %d(끝에서 8섹터마다) = %d, 마지막 = 데이터+EOF' % (new_n, need, orig_n))
     h = hashlib.md5(open(OUT, 'rb').read()).hexdigest().upper()
     print('섹터 %d개 · %s md5 %s' % (n, OUT, h))
     if '--install' in sys.argv:

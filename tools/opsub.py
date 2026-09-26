@@ -85,7 +85,30 @@ def preview():
     print(dst)
 
 
-def build():
+TARGET_FRAMES = 2723            # 원본 프레임 수 — psxavenc 가 꼬리 프레임을 버리므로 마지막 프레임을 복제해 붙여 맞춘다
+
+
+def count_frames(path):
+    import struct
+    d = open(path, 'rb').read()
+    fr = set()
+    for s in range(len(d) // 2352):
+        sm = d[s * 2352 + 18]
+        if sm & 0x08 and not sm & 0x04:
+            fr.add(struct.unpack_from('<I', d, s * 2352 + 32)[0])
+    return len(fr)
+
+
+def build(extra=None):
+    if extra is None:                                  # 복제 프레임 수를 늘려 가며 원본 프레임 수에 맞춘다
+        for extra in range(0, 8):                      # 소리를 늘린 뒤엔 psxavenc 가 꼬리 1‥2장만 버린다
+            build(extra)
+            n = count_frames(OUT)
+            print('  꼬리 복제 %d → 프레임 %d' % (extra, n))
+            if n >= TARGET_FRAMES:
+                break
+        assert n >= TARGET_FRAMES, ('프레임 수 부족', n)   # 복제 1장에 프레임이 2장씩 늘어 2,724 가 된다(재생 끝은 EOF 로 판단)
+        return
     F = ImageFont.truetype(FONT, PX)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     wav = OUT + '.wav'; mkv = OUT + '.mkv'
@@ -93,17 +116,22 @@ def build():
                     '-c:a', 'pcm_s16le', '-ar', '37800', '-ac', '2', wav], check=True)
     wr = subprocess.Popen([FF, '-y', '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24',
                            '-s', '%dx%d' % (W, H), '-framerate', str(FPS), '-i', '-', '-i', wav,
+                           '-af', 'apad', '-shortest',            # ★소리(181.0초)가 영상(181.5초)보다 짧으면 psxavenc 가 소리 끝에서 멈춘다 → 무음으로 늘림
                            '-c:v', 'ffv1', '-c:a', 'pcm_s16le', mkv], stdin=subprocess.PIPE)
     pf = per_frame()
     n = 0
+    last = None
     for i, fr in enumerate(frames()):
-        wr.stdin.write((draw(fr, pf[i], F) if i in pf else fr).tobytes()); n += 1
+        last = draw(fr, pf[i], F) if i in pf else fr
+        wr.stdin.write(last.tobytes()); n += 1
+    for _ in range(extra):                             # 꼬리 복제(psxavenc 가 버리는 몫)
+        wr.stdin.write(last.tobytes())
     wr.stdin.close(); wr.wait()
     subprocess.run([PSXAVENC, '-q', '-t', 'strcd', '-v', 'v2', '-f', '37800', '-b', '4', '-c', '2', '-F', '1', '-C', '1',
                     '-s', '%dx%d' % (W, H), '-r', str(FPS), '-x', '2', '-X', mkv, OUT], check=True)
     os.remove(wav); os.remove(mkv)
     old, new = os.path.getsize(SRC) // 2352, os.path.getsize(OUT) // 2352
-    print('프레임 %d · %d → %d 섹터 %s' % (n, old, new, 'OK' if new <= old else '★원본보다 크다★'))
+    print('입력 프레임 %d+%d · %d → %d 섹터 %s' % (n, extra, old, new, 'OK' if new <= old else '★원본보다 크다★'))
 
 
 if __name__ == '__main__':
