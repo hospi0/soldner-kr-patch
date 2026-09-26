@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 r"""번역 원문 추출 → work/text/*.tsv  (열: 번호 · 위치/예산 · JP · KO(빈칸))
   표기: SJIS 글자는 그대로, 줄바꿈 제어 'n' → \n, 그 밖의 1바이트(제어 글자·인수·00 포함)는 {xx}.
-  msg.tsv      MESSAGE.DAT — 번호 = 블록:문장 (블록 표 → u16 문장 수 + 오프셋, 문장 길이 자유)
+  msg.tsv      MESSAGE.DAT — 번호 = 블록:문장 (블록 표 → u16 문장 수 + 오프셋, 문장 길이 자유), 표기는 tools/msgcode.py 문법
   exe.tsv      SLPS_013.19 — 앞이 NUL 인 SJIS 문자열(전각 2자 이상), 예산 = 원문 바이트 수(제자리)
   kana.tsv     SLPS_013.19 — 반각 가타카나 문자열(마법 이름 등, 그릴 때 전각으로 바뀜), 예산 = 원문 바이트 수
   job.tsv · bevent.tsv · scenario.tsv — 같은 방식(앞이 NUL 인 SJIS 문자열), 형식 해독 전이라 «제자리 예산»으로
@@ -10,7 +10,7 @@ r"""번역 원문 추출 → work/text/*.tsv  (열: 번호 · 위치/예산 · J
 import os, re, struct, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-import kr12
+import kr12, msgcode
 
 W = os.path.join(ROOT, 'work')
 OUT = os.path.join(W, 'text')
@@ -78,7 +78,7 @@ def main():
     for bi, (o, s) in enumerate(kr12.blocks(msg)):
         for mi, m in enumerate(kr12.block_msgs(msg[o:o + s])):
             if re.search(SJ, m):
-                rows.append(('%d:%d' % (bi, mi), len(m), esc(m, halfkana=False)))   # 대사 속 0xA1‥DF 는 제어 글자 인수
+                rows.append(('%d:%d' % (bi, mi), len(m), msgcode.decode(m)))   # 제어 문법대로(tools/msgcode.py) — {z} {s:0023} {y:…} 등
     n = write('msg.tsv', rows, '#블록:문장\t바이트\tJP\tKO')
     print('msg.tsv', n)
     exe = open(os.path.join(W, 'SLPS_013.19'), 'rb').read()

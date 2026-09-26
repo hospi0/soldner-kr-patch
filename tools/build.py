@@ -16,7 +16,7 @@ import hashlib, os, re, shutil, struct, sys
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-import kr12, discfs, plates, towntitles, cityplates, datebox
+import kr12, discfs, plates, towntitles, cityplates, datebox, msgcode
 from cdsector import fix_sector
 
 SRC = r'C:\claude\roms\ps\Soldnerschild Special (Japan)\Soldnerschild Special (Japan).bin'
@@ -46,7 +46,7 @@ def load_tsv(name):
 def wide(s):
     """{xx}·\\n 밖의 반각 영숫자·공백 → 전각(대사창은 2바이트 글자만)"""
     out = []
-    for tok in re.split(r'(\{[0-9a-f]{2}\}|\\n)', s):
+    for tok in re.split(r'(\{[a-z](?::[0-9a-f]*)?\}|\{[0-9a-f]{2}\}|\\n)', s):   # 제어 표기(tools/msgcode.py)는 그대로
         if tok.startswith('{') or tok == '\\n':
             out.append(tok)
         else:
@@ -122,9 +122,9 @@ def main():
         o, s = bl[b]
         ms = kr12.block_msgs(bytes(msg[o:o + s]))
         for i, (jp, ko) in tr.items():
-            if ms[i] != jp_bytes(jp, True):
+            if ms[i] != msgcode.encode(jp):
                 err.append('대사 %d:%d 원문 불일치' % (b, i)); continue
-            ms[i] = kr12.encode(ko, m); n_msg += 1
+            ms[i] = msgcode.encode(ko, lambda t: kr12.encode(t, m)); n_msg += 1
         try:
             msg[o:o + s] = kr12.build_block(ms, s)
         except AssertionError as e:
