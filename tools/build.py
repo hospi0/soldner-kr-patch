@@ -26,7 +26,8 @@ INSTALL = r'F:\hospi\roms\ps roms\Soldnerschild Special (Japan)'
 TXT = os.path.join(ROOT, 'work', 'text')
 if '--text' in sys.argv:                                        # 시험용 번역 폴더
     TXT = sys.argv[sys.argv.index('--text') + 1]
-INPLACE = [('exe.tsv', '/SLPS_013.19'), ('job.tsv', '/JOBDATA.DAT'), ('bevent.tsv', '/BEVENT.DAT'), ('scenario.tsv', '/SCENARIO.DAT')]
+INPLACE = [('exe.tsv', '/SLPS_013.19'), ('job.tsv', '/JOBDATA.DAT'), ('bevent.tsv', '/BEVENT.DAT'), ('scenario.tsv', '/SCENARIO.DAT'),
+           ('kana.tsv', '/SLPS_013.19')]          # 반각 이름: 예산 = 같은 표 원문 최장(원문 뒤는 0 이어야), 한글은 2바이트 코드로
 
 
 def load_tsv(name):
@@ -139,8 +140,9 @@ def main():
             if not done((rid, n, jp, ko)):
                 continue
             off = int(rid[1:], 16)
-            if bytes(d[off:off + n]) != jp_bytes(jp, name == 'job.tsv'):
-                err.append('%s %s 원문 불일치' % (name, rid)); continue
+            jb = jp_bytes(jp, name == 'job.tsv')
+            if bytes(d[off:off + len(jb)]) != jb or any(orig[p][off + len(jb):off + n]):
+                err.append('%s %s 원문 불일치(또는 예산 안에 0 아닌 바이트)' % (name, rid)); continue
             kb = kr12.encode(ko, m)                               # job.tsv 는 «\n» → 'n'(원문 줄바꿈), EXE 쪽 'n' 은 원문 표기 그대로
             if len(kb) > n:
                 err.append('%s %s 예산 %d < %d: %s' % (name, rid, n, len(kb), ko)); continue

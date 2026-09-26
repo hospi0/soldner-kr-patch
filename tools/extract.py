@@ -85,8 +85,22 @@ def main():
     rows = [('E%06x' % o, len(s), esc(s, False)) for o, s in scan_strings(exe)]
     print('exe.tsv', write('exe.tsv', rows, '#위치(EXE 파일)\t예산\tJP\tKO'))
     # 반각 가타카나: «반각만 3자 이상 + NUL 끝», EXE 데이터 표 영역(0xB0000~)만 — 그 앞은 코드 바이트 우연 일치
-    rows = [('K%06x' % m.start(), len(m.group()), m.group().decode('cp932'))
-            for m in re.finditer(rb'[\xa6-\xdf]{3,}(?=\x00)', exe) if m.start() >= 0xB0000]
+    hits = [(m.start(), m.group()) for m in re.finditer(rb'[\xa6-\xdf]{3,}(?=\x00)', exe) if m.start() >= 0xB0000]
+    # 예산 = 같은 표(간격이 일정한 연속 기록)에서 원문이 가장 길게 쓴 길이 — 원본이 이미 쓰는 길이라 칸이 그만큼은 된다.
+    #   ★이름은 그릴 때 반각→전각 표(EXE 0xB23F8, 0xA6‥0xDD)를 거치지만, 같은 함수가 2바이트 SJIS 도 그린다(⏳실기 확인)
+    groups, cur = [], [0]
+    for i in range(1, len(hits)):
+        if hits[i][0] - hits[i - 1][0] <= 40:
+            cur.append(i)
+        else:
+            groups.append(cur); cur = [i]
+    groups.append(cur)
+    cap = {}
+    for g in groups:
+        mx = max(len(hits[i][1]) for i in g)
+        for i in g:
+            cap[i] = mx
+    rows = [('K%06x' % o, cap[i], s.decode('cp932')) for i, (o, s) in enumerate(hits)]
     print('kana.tsv', write('kana.tsv', rows, '#위치(EXE 파일)\t예산(반각 1B/자)\tJP\tKO'))
     for fn, name in (('JOBDATA.DAT', 'job.tsv'), ('BEVENT.DAT', 'bevent.tsv'), ('SCENARIO.DAT', 'scenario.tsv')):
         d = open(os.path.join(W, fn), 'rb').read()
