@@ -141,7 +141,8 @@ def cmd_apply(name, patch):
         mk = ko if any(m in ko for m in MARKS) else to_marks(ko, runs)
         if mk is None:
             print('✗', rid, '제어 표기 못 찾음 |', ko); bad += 1; continue
-        targets = bysk[sk] if name == 'msg' else [r]
+        # 엔딩 서술 조각({z} 없는 줄)은 앞뒤 조각과 이어지는 문장이라 같은 원문이라도 따로 번역한다
+        targets = bysk[sk] if name == 'msg' and '{z}' in r[2] else [r]
         old = r[3]
         for q in targets:
             if q is not r and q[3] and q[3] != old:
