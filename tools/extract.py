@@ -21,8 +21,11 @@ def esc(b, newline_n=True, halfkana=True):
     out, i = [], 0
     while i < len(b):
         x = b[i]
-        if (0x81 <= x <= 0x9f or 0xe0 <= x <= 0xef) and i + 1 < len(b):
-            out.append(b[i:i + 2].decode('cp932', 'replace')); i += 2
+        ch = b[i:i + 2].decode('cp932', 'replace') if (0x81 <= x <= 0x9f or 0xe0 <= x <= 0xef) and i + 1 < len(b) else ''
+        if len(ch) == 1 and ch != '�' and ch.encode('cp932', 'replace') == b[i:i + 2]:   # 왕복이 같을 때만(87 92 → ∫ → 81 E7 같은 중복 코드 제외)
+            # ★실제로 풀리는 글자일 때만 짝짓는다 — 제어 글자 인수(j 00 e2 · v 86 82 …)가 SJIS 앞 바이트 범위라
+            #   무조건 짝지으면 «�»가 되어 원문을 잃는다(551줄, 2026-09-26)
+            out.append(ch); i += 2
         elif newline_n and x == 0x6e:
             out.append('\\n'); i += 1
         elif halfkana and 0xa1 <= x <= 0xdf:
