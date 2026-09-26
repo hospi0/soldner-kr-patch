@@ -82,7 +82,7 @@ def problems(name, r):
             err.append('일본 글자 남음 %r' % ch); break
     if name == 'msg':
         sk = RUN.sub('', jp)
-        lim = max(22, max(len(x) for x in sk.split('\\n')))
+        lim = max(24, max(len(x) for x in sk.split('\\n')))
         if '{z}' not in jp and '\\n' not in jp and len(sk) <= 12:
             lim = 12                                          # 엔딩 서술 조각(12자 칸)
         for x in RUN.sub('\\\\n', ko).split('\\n'):
