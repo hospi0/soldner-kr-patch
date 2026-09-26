@@ -16,7 +16,7 @@ TEXT = os.path.join(ROOT, 'work', 'text')
 FILES = ['msg', 'exe', 'kana', 'job', 'bevent', 'scenario']
 TOK = r'\{[a-z](?::[0-9a-f]*)?\}|\{[0-9a-f]{2}\}'
 RUN = re.compile('(?:%s)+' % TOK)
-OKNEXT = set(' \u3000\\…!?！？,.，．、。~～-－―『』「」（）()님경씨의도에한께만하처같조까부대그놈입아인맞')
+OKNEXT = set(' \u3000\\…!?！？,.，．、。~～-－―『』「」（）()님경씨의도에한께만하처같조까부대그놈입아인맞형왕')
 MARKS = [chr(0x2460 + i) for i in range(20)] + [chr(0x3251 + i) for i in range(15)] + [chr(0x32B1 + i) for i in range(15)]
 
 
