@@ -31,5 +31,6 @@
 - 대사창은 2바이트 글자만 — 띄어쓰기는 전각 공백(　).
 
 ## 도구
+- `tools/tr.py` 번역 넣기·검사(할 일 뽑기·자리표 ①②·같은 대사 함께 채우기) · 용어집 `docs/02_용어집.md`
 - `tools/extract.py` 추출 · `tools/poc.py` PoC 빌드(대사 1줄·이름·그림) · `tools/kr12.py` 12×12 글꼴·MESSAGE 되쓰기
 - 그림: `plates.py`(건물 표지) · `towntitles.py`(도시 제목 20장) · `cityplates.py`(도시 이름 판) · `datebox.py`(연월 상자)
