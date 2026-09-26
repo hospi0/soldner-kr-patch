@@ -16,7 +16,7 @@ import hashlib, os, re, shutil, struct, sys
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-import kr12, discfs, plates, towntitles, cityplates, datebox, msgcode
+import kr12, discfs, plates, towntitles, cityplates, datebox, msgcode, cdecc
 from cdsector import fix_sector
 
 SRC = r'C:\claude\roms\ps\Soldnerschild Special (Japan)\Soldnerschild Special (Japan).bin'
@@ -174,6 +174,28 @@ def main():
                     chunk = d[k:k + 2048]
                     sec[24:24 + len(chunk)] = chunk
                     fh.seek(pos); fh.write(fix_sector(sec)); n += 1
+        # --- 5) 오프닝 자막 동영상(tools/opsub.py build → work/movie/kr/ZZOP.STR) — 원래 자리, 원본 섹터 수 안 ---
+        #   섹터 머리 MSF 를 절대 위치로 다시 쓰고 Form 1/2 가려 EDC/ECC, 마지막 섹터 EOF, 남는 섹터는 빈 Form 2(바로크 방식).
+        mv = os.path.join(ROOT, 'work', 'movie', 'kr', 'ZZOP.STR')
+        if os.path.exists(mv):
+            lba, size = fs['/ZZOP.STR']
+            orig_n = (size + 2047) // 2048
+            new = open(mv, 'rb').read()
+            new_n = len(new) // 2352
+            assert new_n <= orig_n, ('오프닝이 원본보다 크다', new_n, orig_n)
+            for i in range(orig_n):
+                if i < new_n:
+                    s = bytearray(new[i * 2352:(i + 1) * 2352])
+                else:
+                    s = bytearray(2352); s[0:12] = b'\x00' + b'\xff' * 10 + b'\x00'
+                    s[16:24] = bytes([1, 1, 0x20, 0, 1, 1, 0x20, 0])
+                if i == new_n - 1:
+                    s[18] |= 0x80; s[22] |= 0x80
+                else:
+                    s[18] &= ~0x80; s[22] &= ~0x80
+                cdecc.fix_any(s, lba + i)
+                fh.seek((lba + i) * 2352); fh.write(s)
+            print('오프닝 자막 동영상 %d 섹터(원본 %d)' % (new_n, orig_n))
     h = hashlib.md5(open(OUT, 'rb').read()).hexdigest().upper()
     print('섹터 %d개 · %s md5 %s' % (n, OUT, h))
     if '--install' in sys.argv:
