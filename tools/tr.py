@@ -96,7 +96,7 @@ def problems(name, r):
     if re.search('[' + ''.join(MARKS) + ']', ko):
         err.append('펼치지 않은 자리표')
     body = re.sub(TOK + r'|\\n', '', ko)
-    if name == 'exe':                                         # 앞 데이터 바이트가 붙어 뽑힌 줄: 원문과 같은 앞머리는 그대로 둔 것
+    if name in ('exe', 'kana'):                               # 앞 데이터 바이트가 붙어 뽑힌 줄: 원문과 같은 앞머리는 그대로 둔 것
         body = re.sub(TOK + r'|\\n', '', ko[len(os.path.commonprefix([jp, ko])):])
     for ch in body:
         if '぀' <= ch <= 'ヿ' or '一' <= ch <= '鿿' or '｡' <= ch <= 'ﾟ':
@@ -125,7 +125,11 @@ def problems(name, r):
         for x in RUN.sub('\\\\n', ko).split('\\n'):
             if len(x) > lim:
                 warn.append('줄 %d자 > %d: %s' % (len(x), lim, x))
-    elif name != 'kana':
+    elif name == 'kana':                                      # 반각 1 B, 한글(2바이트 코드) 2 B
+        n = sum(2 if '가' <= ch <= '힣' else 1 for ch in re.sub(TOK, '.', ko))
+        if n > int(bud):
+            err.append('예산 넘침 %d > %s B' % (n, bud))
+    else:
         n = hangul_len(ko)
         if n > int(bud):
             err.append('예산 넘침 %d > %s B' % (n, bud))
