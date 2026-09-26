@@ -99,6 +99,8 @@ def problems(name, r):
     for ch in body:
         if '぀' <= ch <= 'ヿ' or '一' <= ch <= '鿿' or '｡' <= ch <= 'ﾟ':
             err.append('일본 글자 남음 %r' % ch); break
+    if ',' in body or '，' in body:
+        warn.append('쉼표(글꼴 미확인 — 띄어쓰기로)')
     # 이름·낱말 끼움({a:} {p:}) 바로 뒤엔 받침에 따라 바뀌는 조사를 붙이지 않는다(님·의·에게·도·께서 등만)
     for m in re.finditer(r'\{[ap]:([0-9a-f]*)\}(?!\{)(.?)', ko):
         nx = ko[m.end():m.end() + 1]
