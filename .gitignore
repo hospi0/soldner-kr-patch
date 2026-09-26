@@ -1,0 +1,14 @@
+# 허용 목록: 소스·문서·추출 텍스트·작은 그림 자료만(ROM·스테이트·추출 바이너리·my files 금지)
+*
+!.gitignore
+!README.md
+!tools/
+!tools/*.py
+!docs/
+!docs/*.md
+!work/
+!work/text/
+!work/text/*.tsv
+!work/kr/
+!work/kr/*.npy
+!work/kr/*.tsv
