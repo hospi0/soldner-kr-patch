@@ -83,6 +83,9 @@ def problems(name, r):
             err.append('일본 글자 남음 %r' % ch); break
     # 이름·낱말 끼움({a:} {p:}) 바로 뒤엔 받침에 따라 바뀌는 조사를 붙이지 않는다(님·의·에게·도·께서 등만)
     for m in re.finditer(r'\{[ap]:[0-9a-f]*\}(?!\{)(.?)', ko):
+        nx = ko[m.end():m.end() + 1]
+        if m.group(1) == '이' and nx and nx in '다니오옵시었': # 계사 «이다·이니라·입니다…» 는 받침과 무관
+            continue
         if m.group(1) and m.group(1) not in OKNEXT:
             warn.append('끼움 뒤 조사 %r' % ko[m.end() - 1:m.end() + 3])
     if name == 'msg':
