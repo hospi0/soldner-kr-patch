@@ -71,6 +71,30 @@ def scan_strings(d, halfkana=False):
     return rows
 
 
+def supplement(d, found, cov, ok):
+    """앞 바이트가 NUL 이 아닌 SJIS 문자열(2자 이상, NUL 끝)을 found 에 더한다. 머리 반각은 떼고,
+    앞 자료 바이트가 SJIS 앞 바이트로 붙어 읽힌 경우(«遠Gの全滅» = 자료 89 + 敵の全滅)는 한 바이트 밀어 바로잡는다"""
+    for mm in re.finditer(rb'(?:' + SJ + rb'|[\x20-\x7e])*?(?:' + SJ + rb'){2,}(?:' + SJ + rb'|[\x20-\x7e])*(?=\x00)', d):
+        o, s = mm.start(), mm.group()
+        k = re.search(SJ, s).start()                       # 머리 반각 떼기
+        o, s = o + k, s[k:]
+        try:
+            t = s.decode('cp932')
+        except UnicodeDecodeError:
+            continue
+        if re.search(r'[A-Za-z]', t) and re.match(SJ, s[1:]):
+            try:
+                t1 = s[1:].decode('cp932')
+                if len(re.findall(r'[\x20-\x7e]', t1)) < len(re.findall(r'[\x20-\x7e]', t)):
+                    o, s = o + 1, s[1:]
+            except UnicodeDecodeError:
+                pass
+        if not ok(o) or any(x in cov for x in range(o, o + len(s))):
+            continue
+        if len(re.findall(SJ, s)) >= 2:
+            found.append((o, s)); cov.update(range(o, o + len(s)))
+
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
     msg = open(os.path.join(W, 'MESSAGE.DAT'), 'rb').read()
@@ -82,7 +106,36 @@ def main():
     n = write('msg.tsv', rows, '#블록:문장\t바이트\tJP\tKO')
     print('msg.tsv', n)
     exe = open(os.path.join(W, 'SLPS_013.19'), 'rb').read()
-    rows = [('E%06x' % o, len(s), esc(s, False)) for o, s in scan_strings(exe)]
+    found = scan_strings(exe)
+    # ★보조 검색(2026-09-26 실기: 인물 이름·아이템·의뢰 제목·«主人公の名前は？»가 빠졌다) — 앞 바이트가 NUL 이 아닌 문자열
+    #   (기록 머리 바이트·포인터 바로 뒤). 데이터 영역(앞 0x3000 · 0xB0000~)만, 앞에 붙은 반각(머리 바이트)은 떼고 SJIS 부터.
+    cov = set()
+    for o, s in found:
+        cov.update(range(o, o + len(s)))
+    JUNK = {0xd6308}                                       # 膜Ｐ` — 자료 바이트 우연 일치
+    supplement(exe, found, cov, lambda o: (o < 0x3000 or o >= 0xB0000) and o not in JUNK)
+    wide1 = {}
+    # 한 글자 한자 낱말(분류 «盾»·지형 «森»·시설 «城» 등, 앞뒤 NUL) — 가나·전각 영숫자 한 글자(0xB13D8 이름 입력판 등)는 뺀다
+    for mm in re.finditer(rb'(?<=\x00)(' + SJ + rb')(?=\x00)', exe):
+        o, s = mm.start(), mm.group(1)
+        if (o < 0x3000 or o >= 0xB0000) and struct.unpack('>H', s)[0] >= 0x889F and o not in cov:
+            try:
+                s.decode('cp932')
+            except UnicodeDecodeError:
+                continue
+            found.append((o, s)); cov.update(range(o, o + 2))
+            z = len(exe[o + 2:o + 8]) - len(exe[o + 2:o + 8].lstrip(b'\x00'))
+            if z >= 3:                                     # 포인터로 찾는 목록 속 «0 채움» 칸(盾·槍·本 뒤 5바이트) — 형제 문자열(3자)만큼
+                wide1[o] = 2 + min(z - 1, 4)
+    # 서식 문자열 속 한자 한 글자(«%3d才» 나이 · «%2d人» · «%2d回» · «第%y» — 2026-09-26 실기 «17才»)
+    for mm in re.finditer(rb'(?<=\x00)[\x20-\x7e]*' + SJ + rb'[\x20-\x7e]*(?=\x00)', exe):
+        o, s = mm.start(), mm.group()
+        k = re.search(SJ, s).start()
+        if (o < 0x3000 or o >= 0xB0000) and b'%' in s and struct.unpack('>H', s[k:k + 2])[0] >= 0x889F \
+                and not any(x in cov for x in range(o, o + len(s))):
+            found.append((o, s)); cov.update(range(o, o + len(s)))
+    found.sort()
+    rows = [('E%06x' % o, wide1.get(o, len(s)), esc(s, False)) for o, s in found]
     print('exe.tsv', write('exe.tsv', rows, '#위치(EXE 파일)\t예산\tJP\tKO'))
     # 반각 가타카나: «반각만 3자 이상 + NUL 끝», EXE 데이터 표 영역(0xB0000~)만 — 그 앞은 코드 바이트 우연 일치
     hits = [(m.start(), m.group()) for m in re.finditer(rb'[\xa6-\xdf]{3,}(?=\x00)', exe) if m.start() >= 0xB0000]
@@ -104,8 +157,14 @@ def main():
     print('kana.tsv', write('kana.tsv', rows, '#위치(EXE 파일)\t예산(반각 1B/자)\tJP\tKO'))
     for fn, name in (('JOBDATA.DAT', 'job.tsv'), ('BEVENT.DAT', 'bevent.tsv'), ('SCENARIO.DAT', 'scenario.tsv')):
         d = open(os.path.join(W, fn), 'rb').read()
-        rows = [('%s%06x' % (fn[0], o), len(s), esc(s, fn == 'JOBDATA.DAT')) for o, s in scan_strings(b'\x00' + d)]
-        rows = [('%s%06x' % (fn[0], int(r[0][1:], 16) - 1), r[1], r[2]) for r in rows]
+        fd = [(o - 1, s) for o, s in scan_strings(b'\x00' + d)]
+        if fn != 'JOBDATA.DAT':                            # 승리·패배 조건·선택지(BEVENT)·인물 표 사본(SCENARIO)도 앞 바이트가 NUL 이 아니다(2026-09-26 실기 «敵の撃退»)
+            cv = set()
+            for o, s in fd:
+                cv.update(range(o, o + len(s)))
+            supplement(d, fd, cv, lambda o: True)
+            fd.sort()
+        rows = [('%s%06x' % (fn[0], o), len(s), esc(s, fn == 'JOBDATA.DAT')) for o, s in fd]
         print(name, write(name, rows, '#위치(%s)\t예산\tJP\tKO' % fn))
 
 

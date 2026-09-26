@@ -1,6 +1,12 @@
-# 젤드너실트 스페셜 (ゾルドナーシルト スペシャル, PS1 JP SLPS-01319) 한글화 — 작업 저장소(비공개)
+# 젤드너실트 스페셜 (ゾルドナーシルト スペシャル, PS1 JP SLPS-01319) 한글 패치
 
-**`docs/01_초기조사.md` 부터.** ROM·스테이트·빌드 결과물은 올리지 않는다.
+## 내려받기
+**[릴리즈 v0.9](https://github.com/hospi0/soldner-kr-patch/releases/tag/v0.9)** 의 zip 을 받아 원본 `Soldnerschild Special (Japan).bin` 과 같은 폴더에 풀고 `패치적용.bat` 을 실행하세요.
+원본md5 `7A2C8BE7835C2E9297F762E3A2BAE132` → 패치md5 `E46FDAC7E43633AB50F2A3AB1EE6305C`
+
+---
+
+작업 문서는 **`docs/01_초기조사.md` 부터.** ROM·스테이트·빌드 결과물은 올리지 않는다.
 
 ## 번역 원문 (`work/text/*.tsv`, 열: 번호 · 바이트/예산 · JP · KO)
 | 파일 | 내용 | 비고 |

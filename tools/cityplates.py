@@ -13,10 +13,10 @@ sys.path.insert(0, HERE)
 import bdf, towntitles
 
 GALMURI9 = r'C:\claude\utils\font\Galmuri-v2.40.3\Galmuri9.bdf'
-SHEETS = (723160, 734680)
+SHEETS = (722944, 734464)      # ★판 실제 시작(예전 723,160/734,680 은 3줄 늦어 둘째 판 끝 3줄이 뒤에 붙은 숫자 그림 0·1을 덮었다 — 연월 숫자 깨짐, 2026-09-26)
 PW, PH, N = 72, 16, 10
 DARK, LIGHT = 28, 155
-ROW0 = 1                      # 글자 윗줄
+ROW0 = 4                      # 글자 윗줄(실제 판 기준 — 예전 좌표 1)
 
 
 def plate(blank, F, name):
@@ -33,7 +33,7 @@ def plate(blank, F, name):
     ox = 4 + (64 - w) // 2
     for y, x in ink:
         hy, hx = y + 1, x + 1                                      # 밝은 점: 획의 오른쪽 아래
-        if (hy, hx) not in ink and hy < PH - 5:
+        if (hy, hx) not in ink and hy - ROW0 < PH - 6:              # 예전 좌표(ROW0 1)의 hy < 11 과 같은 한계
             p[hy, hx + ox] = LIGHT
     for y, x in ink:
         p[y, x + ox] = DARK
@@ -41,7 +41,7 @@ def plate(blank, F, name):
 
 
 def build(grp):
-    blank = np.load(os.path.join(ROOT, 'work', 'kr', 'cityplate_blank.npy'))
+    blank = np.roll(np.load(os.path.join(ROOT, 'work', 'kr', 'cityplate_blank.npy')), 3, axis=0)   # 저장본은 3줄 늦은 좌표 → 실제 판 좌표
     F = bdf.Font(GALMURI9)
     for s, off in enumerate(SHEETS):
         sheet = np.frombuffer(bytes(grp[off:off + PW * PH * N]), np.uint8).reshape(N, PH, PW).copy()
